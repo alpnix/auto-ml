@@ -78,18 +78,28 @@ class SalaryFeatureBuilder:
         self._enc_lang = MultiLabelEncoder(MAX_LANGUAGE_FEATURES)
         self._enc_fw = MultiLabelEncoder(MAX_FRAMEWORK_FEATURES)
         self._cat_cols = ["country", "education", "company_size"]
-        self._num_cols = ["experience", "num_languages", "num_frameworks"]
+        self._country_mean_log: dict[str, float] = {}
+        self._global_mean_log: float = 0.0
 
     def fit(self, df: pd.DataFrame) -> SalaryFeatureBuilder:
         d = _add_list_columns(df)
         self._ohe.fit(d[self._cat_cols])
         self._enc_lang.fit(d["_langs"])
         self._enc_fw.fit(d["_fws"])
+        log_sal = np.log1p(df["salary_usd"].to_numpy(dtype=np.float64))
+        self._global_mean_log = float(log_sal.mean())
+        self._country_mean_log = (
+            df.assign(_log_sal=log_sal).groupby("country")["_log_sal"].mean().to_dict()
+        )
         return self
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         d = _add_list_columns(df)
-        X_num = d[self._num_cols].to_numpy(dtype=np.float64)
+        exp = d["experience"].to_numpy(dtype=np.float64)
+        n_lang = d["num_languages"].to_numpy(dtype=np.float64)
+        n_fw = d["num_frameworks"].to_numpy(dtype=np.float64)
+        country_enc = df["country"].map(self._country_mean_log).fillna(self._global_mean_log).to_numpy(dtype=np.float64)
+        X_num = np.column_stack([exp, exp ** 2, n_lang, n_fw, country_enc])
         X_cat = self._ohe.transform(d[self._cat_cols])
         X_lang = self._enc_lang.transform(d["_langs"])
         X_fw = self._enc_fw.transform(d["_fws"])
