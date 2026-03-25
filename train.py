@@ -12,7 +12,7 @@ from scipy import sparse
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import KFold
-from sklearn.preprocessing import MultiLabelBinarizer, OrdinalEncoder
+from sklearn.preprocessing import MultiLabelBinarizer, OrdinalEncoder, QuantileTransformer
 
 
 ROOT = Path(__file__).resolve().parent
@@ -139,11 +139,11 @@ def _load_test() -> pd.DataFrame:
     return df
 
 
-def _make_model(cat_features: list[int] | None = None, seed: int = RANDOM_STATE, depth: int = 7) -> HistGradientBoostingRegressor:
+def _make_model(cat_features: list[int] | None = None, seed: int = RANDOM_STATE) -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
         max_iter=1000,
         learning_rate=0.03,
-        max_depth=depth,
+        max_depth=7,
         min_samples_leaf=20,
         l2_regularization=0.05,
         categorical_features=cat_features,
@@ -156,7 +156,6 @@ def _make_model(cat_features: list[int] | None = None, seed: int = RANDOM_STATE,
 
 def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
     y = train_df["salary_usd"].to_numpy(dtype=np.float64)
-    y_log = np.log1p(y)
 
     model_seeds = [42, 7, 137, 0, 314]
     kf_seeds = [42, 0, 7, 13]  # repeated K-fold for better OOF estimates
@@ -173,21 +172,26 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
             fb.fit(tr)
             X_tr = fb.transform(tr)
             X_va = fb.transform(va)
+            # Fit QuantileTransformer on fold train target
+            qt = QuantileTransformer(output_distribution="normal", n_quantiles=min(1000, len(tr_idx)),
+                                     random_state=kf_seed)
+            y_tr_q = qt.fit_transform(y[tr_idx].reshape(-1, 1)).ravel()
             preds = []
             for seed in model_seeds:
-                for depth in [6, 7, 8]:
-                    m = _make_model(fb.cat_feature_indices(), seed=seed, depth=depth)
-                    m.fit(X_tr, y_log[tr_idx])
-                    preds.append(m.predict(X_va))
+                m = _make_model(fb.cat_feature_indices(), seed=seed)
+                m.fit(X_tr, y_tr_q)
+                pred_q = m.predict(X_va)
+                # inverse transform back to salary scale
+                pred_sal = qt.inverse_transform(pred_q.reshape(-1, 1)).ravel()
+                preds.append(pred_sal)
             oof_acc[va_idx] += np.mean(preds, axis=0)
             oof_cnt[va_idx] += 1
             total_folds += 1
             print(f"  kf{kf_seed} fold {fold}/{N_SPLITS} done", file=sys.stderr)
 
-    oof = oof_acc / oof_cnt
-    pred_salary = np.clip(np.expm1(oof), 0.0, None)
-    mae = mean_absolute_error(y, pred_salary)
-    rmse = float(np.sqrt(mean_squared_error(y, pred_salary)))
+    oof = np.clip(oof_acc / oof_cnt, 0.0, None)
+    mae = mean_absolute_error(y, oof)
+    rmse = float(np.sqrt(mean_squared_error(y, oof)))
     return mae, rmse
 
 
@@ -204,7 +208,7 @@ def main() -> None:
     print(f"  train rows: {len(train_df)}", file=sys.stderr)
     print(f"  test rows:  {len(test_df)}", file=sys.stderr)
 
-    print("K-fold CV (log1p target, metrics on USD scale)...", file=sys.stderr)
+    print("K-fold CV (quantile target, metrics on USD scale)...", file=sys.stderr)
     mae, rmse = run_cv(train_df)
     print(f"  CV MAE (USD):  {mae:,.2f}", file=sys.stderr)
     print(f"  CV RMSE (USD): {rmse:,.2f}", file=sys.stderr)
@@ -214,16 +218,19 @@ def main() -> None:
     fb.fit(train_df)
     X_train = fb.transform(train_df)
     X_test = fb.transform(test_df)
-    y_log_full = np.log1p(train_df["salary_usd"].to_numpy(dtype=np.float64))
+    y_full = train_df["salary_usd"].to_numpy(dtype=np.float64)
+    qt_full = QuantileTransformer(output_distribution="normal", n_quantiles=min(1000, len(y_full)),
+                                  random_state=RANDOM_STATE)
+    y_q_full = qt_full.fit_transform(y_full.reshape(-1, 1)).ravel()
 
     seeds = [42, 7, 137, 0, 314, 999, 1234, 2025, 55, 88]
-    test_preds_log = []
+    test_preds_q = []
     for seed in seeds:
         m = _make_model(fb.cat_feature_indices(), seed=seed)
-        m.fit(X_train, y_log_full)
-        test_preds_log.append(m.predict(X_test))
-    test_pred_log = np.mean(test_preds_log, axis=0)
-    test_pred = np.clip(np.expm1(test_pred_log), 0.0, None).astype(np.int64)
+        m.fit(X_train, y_q_full)
+        test_preds_q.append(m.predict(X_test))
+    test_pred_q = np.mean(test_preds_q, axis=0)
+    test_pred = np.clip(qt_full.inverse_transform(test_pred_q.reshape(-1, 1)).ravel(), 0.0, None).astype(np.int64)
 
     out = pd.DataFrame({"salary_usd": test_pred})
     out.to_csv(PREDICTIONS_CSV, index=False)
