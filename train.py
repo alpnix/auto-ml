@@ -78,7 +78,7 @@ class SalaryFeatureBuilder:
         self._enc_lang = MultiLabelEncoder(MAX_LANGUAGE_FEATURES)
         self._enc_fw = MultiLabelEncoder(MAX_FRAMEWORK_FEATURES)
         self._cat_cols = ["country", "education", "company_size"]
-        self._te: dict[str, dict[str, float]] = {}
+        self._country_mean_log: dict[str, float] = {}
         self._global_mean_log: float = 0.0
 
     def fit(self, df: pd.DataFrame) -> SalaryFeatureBuilder:
@@ -88,28 +88,18 @@ class SalaryFeatureBuilder:
         self._enc_fw.fit(d["_fws"])
         log_sal = np.log1p(df["salary_usd"].to_numpy(dtype=np.float64))
         self._global_mean_log = float(log_sal.mean())
-        tmp = df.assign(_log_sal=log_sal)
-        for col in ["country", "education", "company_size"]:
-            self._te[col] = tmp.groupby(col)["_log_sal"].mean().to_dict()
+        self._country_mean_log = (
+            df.assign(_log_sal=log_sal).groupby("country")["_log_sal"].mean().to_dict()
+        )
         return self
-
-    def _target_enc(self, df: pd.DataFrame, col: str) -> np.ndarray:
-        return df[col].map(self._te[col]).fillna(self._global_mean_log).to_numpy(dtype=np.float64)
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         d = _add_list_columns(df)
         exp = d["experience"].to_numpy(dtype=np.float64)
         n_lang = d["num_languages"].to_numpy(dtype=np.float64)
         n_fw = d["num_frameworks"].to_numpy(dtype=np.float64)
-        country_enc = self._target_enc(df, "country")
-        edu_enc = self._target_enc(df, "education")
-        size_enc = self._target_enc(df, "company_size")
-        X_num = np.column_stack([
-            exp, np.log1p(exp), exp ** 2,
-            n_lang, n_fw,
-            country_enc, edu_enc, size_enc,
-            exp * country_enc,
-        ])
+        country_enc = df["country"].map(self._country_mean_log).fillna(self._global_mean_log).to_numpy(dtype=np.float64)
+        X_num = np.column_stack([exp, exp ** 2, n_lang, n_fw, country_enc])
         X_cat = self._ohe.transform(d[self._cat_cols])
         X_lang = self._enc_lang.transform(d["_langs"])
         X_fw = self._enc_fw.transform(d["_fws"])
@@ -153,14 +143,14 @@ def _load_test() -> pd.DataFrame:
 
 def _make_model() -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
-        max_iter=500,
-        learning_rate=0.05,
-        max_depth=8,
-        min_samples_leaf=15,
-        l2_regularization=1e-2,
+        max_iter=1000,
+        learning_rate=0.03,
+        max_depth=7,
+        min_samples_leaf=20,
+        l2_regularization=0.1,
         early_stopping=True,
         validation_fraction=0.1,
-        n_iter_no_change=30,
+        n_iter_no_change=40,
         random_state=RANDOM_STATE,
     )
 
