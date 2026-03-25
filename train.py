@@ -88,8 +88,12 @@ class SalaryFeatureBuilder:
         self._enc_fw.fit(d["_fws"])
         log_sal = np.log1p(df["salary_usd"].to_numpy(dtype=np.float64))
         self._global_mean_log = float(log_sal.mean())
+        # Bayesian smoothed TE: shrink rare categories toward global mean (k=20)
+        k = 20.0
+        tmp = df.assign(_log_sal=log_sal).groupby("country")["_log_sal"].agg(["mean", "count"])
         self._country_mean_log = (
-            df.assign(_log_sal=log_sal).groupby("country")["_log_sal"].mean().to_dict()
+            ((tmp["mean"] * tmp["count"] + self._global_mean_log * k) / (tmp["count"] + k))
+            .to_dict()
         )
         return self
 
@@ -146,7 +150,7 @@ def _make_model() -> HistGradientBoostingRegressor:
         max_iter=1000,
         learning_rate=0.03,
         max_depth=7,
-        min_samples_leaf=10,
+        min_samples_leaf=20,
         l2_regularization=0.1,
         early_stopping=True,
         validation_fraction=0.1,
