@@ -10,3 +10,4 @@ ef06c80	auto-ml/mar25	49044.622253	59660.063849	crash	N_SPLITS=10 causes major r
 d37e59c	auto-ml/mar25	13259.325861	16146.509394	keep	min_samples_leaf=10 (near-best)
 f597b21	auto-ml/mar25	13259.011209	16146.619627	discard	log1p(exp) + total_skills + bayesian TE (same as best)
 bff36fd	auto-ml/mar25	13258.057870	16150.040944	keep	HGBR native categorical features (new best)
+46e7624	auto-ml/mar25	13258.993053	16150.940446	discard	native cats + country TE (redundant, slightly worse)
