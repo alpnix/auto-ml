@@ -55,7 +55,7 @@ python3 train.py
 
 ## Experimenting
 
-See [`program.md`](program.md) for an optional autonomous “try ideas, measure CV, keep or revert” loop aimed at **lower CV MAE** (and RMSE) on USD.
+See [`program.md`](program.md) for an autonomous loop: tune **`train.py`**, measure **CV MAE / RMSE (USD)**, **`git push` the experiment branch after every run** (improved, worse, or crash), and keep a single append-only **`results.tsv` on `main`** that aggregates logs from all experiment branches (see that file for column schema, including **`branch`**).
 
 ## License
 

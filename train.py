@@ -139,11 +139,11 @@ def _load_test() -> pd.DataFrame:
     return df
 
 
-def _make_model(cat_features: list[int] | None = None, seed: int = RANDOM_STATE) -> HistGradientBoostingRegressor:
+def _make_model(cat_features: list[int] | None = None, seed: int = RANDOM_STATE, depth: int = 7) -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
         max_iter=1000,
         learning_rate=0.03,
-        max_depth=7,
+        max_depth=depth,
         min_samples_leaf=20,
         l2_regularization=0.05,
         categorical_features=cat_features,
@@ -175,9 +175,10 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
             X_va = fb.transform(va)
             preds = []
             for seed in model_seeds:
-                m = _make_model(fb.cat_feature_indices(), seed=seed)
-                m.fit(X_tr, y_log[tr_idx])
-                preds.append(m.predict(X_va))
+                for depth in [6, 7, 8]:
+                    m = _make_model(fb.cat_feature_indices(), seed=seed, depth=depth)
+                    m.fit(X_tr, y_log[tr_idx])
+                    preds.append(m.predict(X_va))
             oof_acc[va_idx] += np.mean(preds, axis=0)
             oof_cnt[va_idx] += 1
             total_folds += 1
