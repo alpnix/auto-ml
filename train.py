@@ -159,7 +159,7 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
     y_log = np.log1p(y)
 
     model_seeds = [42, 7, 137, 0, 314]
-    kf_seeds = [42, 0, 7]  # repeated K-fold for better OOF estimates
+    kf_seeds = [42, 0, 7, 13]  # repeated K-fold for better OOF estimates
     oof_acc = np.zeros(len(train_df), dtype=np.float64)
     oof_cnt = np.zeros(len(train_df), dtype=np.int32)
 
