@@ -17,3 +17,4 @@ a4e29ae	auto-ml/mar25	13256.745613	16150.594437	discard	ordered enc + monotonic 
 7c84269	auto-ml/mar25	13251.530038	16137.254944	keep	3-seed ensemble per fold (new best)
 a173937	auto-ml/mar25	13249.902513	16136.378731	keep	5-seed ensemble (new best)
 77cc144	auto-ml/mar25	13249.889766	16135.335678	keep	10-seed ensemble (marginal improvement)
+0b2e889	auto-ml/mar25	13244.154687	16130.551852	keep	repeated 2-KFold x 5-seed ensemble (new best)
