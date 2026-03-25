@@ -1,1 +1,2 @@
 commit	branch	cv_mae_usd	cv_rmse_usd	status	description
+abf6a85	auto-ml/mar25	13268.957301	16166.265898	keep	baseline train.py
