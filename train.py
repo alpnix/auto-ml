@@ -21,8 +21,8 @@ TEST_CSV = ROOT / "test.csv"
 PREDICTIONS_CSV = ROOT / "predictions.csv"
 
 # Cap multi-label vocabulary to keep memory reasonable for dense HGBR input
-MAX_LANGUAGE_FEATURES = 60
-MAX_FRAMEWORK_FEATURES = 60
+MAX_LANGUAGE_FEATURES = 100
+MAX_FRAMEWORK_FEATURES = 100
 N_SPLITS = 5
 RANDOM_STATE = 42
 
@@ -133,14 +133,14 @@ def _load_test() -> pd.DataFrame:
 
 def _make_model() -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
-        max_iter=300,
-        learning_rate=0.08,
-        max_depth=10,
-        min_samples_leaf=20,
-        l2_regularization=1e-3,
+        max_iter=500,
+        learning_rate=0.05,
+        max_depth=8,
+        min_samples_leaf=15,
+        l2_regularization=1e-2,
         early_stopping=True,
         validation_fraction=0.1,
-        n_iter_no_change=20,
+        n_iter_no_change=30,
         random_state=RANDOM_STATE,
     )
 
