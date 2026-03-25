@@ -14,3 +14,4 @@ bff36fd	auto-ml/mar25	13258.057870	16150.040944	keep	HGBR native categorical fea
 e1ba96b	auto-ml/mar25	13254.686803	16145.619019	keep	native cats + l2=0.05 (new best)
 6ee0ce6	auto-ml/mar25	13254.686803	16145.619019	discard	hyperparameter search (l2 lr leaf vocab) -- best config confirmed
 a4e29ae	auto-ml/mar25	13256.745613	16150.594437	discard	ordered enc + monotonic + exp_bin + drop-exp2 (worse)
+7c84269	auto-ml/mar25	13251.530038	16137.254944	keep	3-seed ensemble per fold (new best)
