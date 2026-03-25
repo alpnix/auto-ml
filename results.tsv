@@ -4,3 +4,4 @@ c32c738	auto-ml/mar25	13268.542290	16161.715893	keep	more features (100) + tuned
 d0ea75a	auto-ml/mar25	13262.540292	16151.126602	keep	experience^2 + country target encoding
 da00ebb	auto-ml/mar25	13268.296010	16160.234742	discard	more target encodings + interactions (overfit)
 bb4197c	auto-ml/mar25	13259.011209	16146.619627	keep	exp2 features + lr=0.03 max_iter=1000 l2=0.1
+37a7017	auto-ml/mar25	13263.355320	16153.169519	discard	lr=0.02 max_iter=2000 (too slow)
