@@ -6,3 +6,4 @@ da00ebb	auto-ml/mar25	13268.296010	16160.234742	discard	more target encodings + 
 bb4197c	auto-ml/mar25	13259.011209	16146.619627	keep	exp2 features + lr=0.03 max_iter=1000 l2=0.1
 37a7017	auto-ml/mar25	13263.355320	16153.169519	discard	lr=0.02 max_iter=2000 (too slow)
 ef06c80	auto-ml/mar25	49044.622253	59660.063849	crash	N_SPLITS=10 causes major regression
+5c2abb1	auto-ml/mar25	13288.242795	16193.787564	discard	max_leaf_nodes=63 no max_depth
