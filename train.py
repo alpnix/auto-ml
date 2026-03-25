@@ -12,7 +12,7 @@ from scipy import sparse
 from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from sklearn.model_selection import KFold
-from sklearn.preprocessing import MultiLabelBinarizer, OneHotEncoder
+from sklearn.preprocessing import MultiLabelBinarizer, OrdinalEncoder
 
 
 ROOT = Path(__file__).resolve().parent
@@ -71,30 +71,26 @@ class MultiLabelEncoder:
 
 
 class SalaryFeatureBuilder:
-    """Builds a sparse then dense design matrix: numeric + OHE categoricals + multi-label skills."""
+    """Dense design matrix: numeric + ordinal (native cat) + multi-label skills."""
+
+    # column layout: [exp, exp^2, n_lang, n_fw] + [country_ord, edu_ord, size_ord] + [lang...] + [fw...]
+    N_NUM = 4
+    CAT_COLS = ["country", "education", "company_size"]
+    N_CAT = 3  # indices N_NUM .. N_NUM+N_CAT-1 are native categoricals
 
     def __init__(self):
-        self._ohe = OneHotEncoder(handle_unknown="ignore", sparse_output=True)
+        self._ord = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
         self._enc_lang = MultiLabelEncoder(MAX_LANGUAGE_FEATURES)
         self._enc_fw = MultiLabelEncoder(MAX_FRAMEWORK_FEATURES)
-        self._cat_cols = ["country", "education", "company_size"]
-        self._country_mean_log: dict[str, float] = {}
-        self._global_mean_log: float = 0.0
+
+    def cat_feature_indices(self) -> list[int]:
+        return list(range(self.N_NUM, self.N_NUM + self.N_CAT))
 
     def fit(self, df: pd.DataFrame) -> SalaryFeatureBuilder:
         d = _add_list_columns(df)
-        self._ohe.fit(d[self._cat_cols])
+        self._ord.fit(d[self.CAT_COLS])
         self._enc_lang.fit(d["_langs"])
         self._enc_fw.fit(d["_fws"])
-        log_sal = np.log1p(df["salary_usd"].to_numpy(dtype=np.float64))
-        self._global_mean_log = float(log_sal.mean())
-        # Bayesian smoothed TE: shrink rare categories toward global mean (k=20)
-        k = 20.0
-        tmp = df.assign(_log_sal=log_sal).groupby("country")["_log_sal"].agg(["mean", "count"])
-        self._country_mean_log = (
-            ((tmp["mean"] * tmp["count"] + self._global_mean_log * k) / (tmp["count"] + k))
-            .to_dict()
-        )
         return self
 
     def transform(self, df: pd.DataFrame) -> np.ndarray:
@@ -102,13 +98,11 @@ class SalaryFeatureBuilder:
         exp = d["experience"].to_numpy(dtype=np.float64)
         n_lang = d["num_languages"].to_numpy(dtype=np.float64)
         n_fw = d["num_frameworks"].to_numpy(dtype=np.float64)
-        country_enc = df["country"].map(self._country_mean_log).fillna(self._global_mean_log).to_numpy(dtype=np.float64)
-        X_num = np.column_stack([exp, exp ** 2, n_lang, n_fw, country_enc])
-        X_cat = self._ohe.transform(d[self._cat_cols])
-        X_lang = self._enc_lang.transform(d["_langs"])
-        X_fw = self._enc_fw.transform(d["_fws"])
-        X = sparse.hstack([sparse.csr_matrix(X_num), X_cat, X_lang, X_fw], format="csr")
-        return X.toarray()
+        X_num = np.column_stack([exp, exp ** 2, n_lang, n_fw])
+        X_cat = self._ord.transform(d[self.CAT_COLS])
+        X_lang = self._enc_lang.transform(d["_langs"]).toarray()
+        X_fw = self._enc_fw.transform(d["_fws"]).toarray()
+        return np.hstack([X_num, X_cat, X_lang, X_fw])
 
 
 def _load_train() -> pd.DataFrame:
@@ -145,13 +139,14 @@ def _load_test() -> pd.DataFrame:
     return df
 
 
-def _make_model() -> HistGradientBoostingRegressor:
+def _make_model(cat_features: list[int] | None = None) -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
         max_iter=1000,
         learning_rate=0.03,
         max_depth=7,
         min_samples_leaf=20,
         l2_regularization=0.1,
+        categorical_features=cat_features,
         early_stopping=True,
         validation_fraction=0.1,
         n_iter_no_change=40,
@@ -173,7 +168,7 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
         fb.fit(tr)
         X_tr = fb.transform(tr)
         X_va = fb.transform(va)
-        model = _make_model()
+        model = _make_model(fb.cat_feature_indices())
         model.fit(X_tr, y_log[tr_idx])
         oof[va_idx] = model.predict(X_va)
         print(f"  fold {fold}/{N_SPLITS} done", file=sys.stderr)
@@ -209,7 +204,7 @@ def main() -> None:
     X_test = fb.transform(test_df)
     y_log_full = np.log1p(train_df["salary_usd"].to_numpy(dtype=np.float64))
 
-    final = _make_model()
+    final = _make_model(fb.cat_feature_indices())
     final.fit(X_train, y_log_full)
     test_pred_log = final.predict(X_test)
     test_pred = np.clip(np.expm1(test_pred_log), 0.0, None).astype(np.int64)
