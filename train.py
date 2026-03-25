@@ -145,9 +145,8 @@ def _make_model() -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
         max_iter=1000,
         learning_rate=0.03,
-        max_depth=None,
-        max_leaf_nodes=63,
-        min_samples_leaf=20,
+        max_depth=7,
+        min_samples_leaf=10,
         l2_regularization=0.1,
         early_stopping=True,
         validation_fraction=0.1,

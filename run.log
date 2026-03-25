@@ -7,13 +7,13 @@ K-fold CV (log1p target, metrics on USD scale)...
   fold 3/5 done
   fold 4/5 done
   fold 5/5 done
-  CV MAE (USD):  13,288.24
-  CV RMSE (USD): 16,193.79
+  CV MAE (USD):  13,259.33
+  CV RMSE (USD): 16,146.51
 Fitting on full train, predicting test...
   wrote /Users/alp/Desktop/Practice/auto-ml/predictions.csv (10000 rows)
-  pred salary_usd min/median/max: 14,521 / 83,434 / 140,293
+  pred salary_usd min/median/max: 14,520 / 83,622 / 141,419
 ---
-cv_mae_usd:       13288.242795
-cv_rmse_usd:      16193.787564
+cv_mae_usd:       13259.325861
+cv_rmse_usd:      16146.509394
 predictions_file: predictions.csv
 test_predictions: 10000
