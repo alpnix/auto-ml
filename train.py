@@ -73,21 +73,13 @@ class MultiLabelEncoder:
 class SalaryFeatureBuilder:
     """Dense design matrix: numeric + ordinal (native cat) + multi-label skills."""
 
-    # column layout: [exp, n_lang, n_fw] + [country_ord, edu_ord, size_ord, exp_bin] + [lang...] + [fw...]
+    # column layout: [exp, n_lang, n_fw] + [country_ord, edu_ord, size_ord] + [lang...] + [fw...]
     N_NUM = 3
     CAT_COLS = ["country", "education", "company_size"]
-    N_CAT = 4  # indices N_NUM .. N_NUM+N_CAT-1 are native categoricals (3 cats + exp_bin)
-
-    _EDU_ORDER = ["High School", "Some College", "Bachelors", "Masters", "PhD"]
-    _SIZE_ORDER = ["1-10", "11-50", "51-200", "201-1000", "1001-5000", "5000+"]
-    _COUNTRIES = sorted(["USA", "UK", "Canada", "Germany", "India", "Australia", "France", "Japan", "Brazil", "Singapore"])
+    N_CAT = 3  # indices N_NUM .. N_NUM+N_CAT-1 are native categoricals
 
     def __init__(self):
-        self._ord = OrdinalEncoder(
-            categories=[self._COUNTRIES, self._EDU_ORDER, self._SIZE_ORDER],
-            handle_unknown="use_encoded_value",
-            unknown_value=-1,
-        )
+        self._ord = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
         self._enc_lang = MultiLabelEncoder(MAX_LANGUAGE_FEATURES)
         self._enc_fw = MultiLabelEncoder(MAX_FRAMEWORK_FEATURES)
 
@@ -101,11 +93,6 @@ class SalaryFeatureBuilder:
         self._enc_fw.fit(d["_fws"])
         return self
 
-    @staticmethod
-    def _exp_bin(exp: np.ndarray) -> np.ndarray:
-        bins = np.array([0, 3, 6, 10, 15, 21, np.inf])
-        return np.digitize(exp, bins[1:]).astype(np.float64)
-
     def transform(self, df: pd.DataFrame) -> np.ndarray:
         d = _add_list_columns(df)
         exp = d["experience"].to_numpy(dtype=np.float64)
@@ -113,10 +100,9 @@ class SalaryFeatureBuilder:
         n_fw = d["num_frameworks"].to_numpy(dtype=np.float64)
         X_num = np.column_stack([exp, n_lang, n_fw])
         X_cat = self._ord.transform(d[self.CAT_COLS])
-        exp_bin = self._exp_bin(exp).reshape(-1, 1)
         X_lang = self._enc_lang.transform(d["_langs"]).toarray()
         X_fw = self._enc_fw.transform(d["_fws"]).toarray()
-        return np.hstack([X_num, X_cat, exp_bin, X_lang, X_fw])
+        return np.hstack([X_num, X_cat, X_lang, X_fw])
 
 
 def _load_train() -> pd.DataFrame:
@@ -153,7 +139,7 @@ def _load_test() -> pd.DataFrame:
     return df
 
 
-def _make_model(cat_features: list[int] | None = None) -> HistGradientBoostingRegressor:
+def _make_model(cat_features: list[int] | None = None, seed: int = RANDOM_STATE) -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
         max_iter=1000,
         learning_rate=0.03,
@@ -164,7 +150,7 @@ def _make_model(cat_features: list[int] | None = None) -> HistGradientBoostingRe
         early_stopping=True,
         validation_fraction=0.1,
         n_iter_no_change=40,
-        random_state=RANDOM_STATE,
+        random_state=seed,
     )
 
 
@@ -175,6 +161,7 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
     kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     oof = np.zeros(len(train_df), dtype=np.float64)
 
+    seeds = [42, 7, 137]
     for fold, (tr_idx, va_idx) in enumerate(kf.split(train_df), start=1):
         tr = train_df.iloc[tr_idx]
         va = train_df.iloc[va_idx]
@@ -182,9 +169,12 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
         fb.fit(tr)
         X_tr = fb.transform(tr)
         X_va = fb.transform(va)
-        model = _make_model(fb.cat_feature_indices())
-        model.fit(X_tr, y_log[tr_idx])
-        oof[va_idx] = model.predict(X_va)
+        preds = []
+        for seed in seeds:
+            m = _make_model(fb.cat_feature_indices(), seed=seed)
+            m.fit(X_tr, y_log[tr_idx])
+            preds.append(m.predict(X_va))
+        oof[va_idx] = np.mean(preds, axis=0)
         print(f"  fold {fold}/{N_SPLITS} done", file=sys.stderr)
 
     pred_salary = np.clip(np.expm1(oof), 0.0, None)
@@ -218,9 +208,13 @@ def main() -> None:
     X_test = fb.transform(test_df)
     y_log_full = np.log1p(train_df["salary_usd"].to_numpy(dtype=np.float64))
 
-    final = _make_model(fb.cat_feature_indices())
-    final.fit(X_train, y_log_full)
-    test_pred_log = final.predict(X_test)
+    seeds = [42, 7, 137]
+    test_preds_log = []
+    for seed in seeds:
+        m = _make_model(fb.cat_feature_indices(), seed=seed)
+        m.fit(X_train, y_log_full)
+        test_preds_log.append(m.predict(X_test))
+    test_pred_log = np.mean(test_preds_log, axis=0)
     test_pred = np.clip(np.expm1(test_pred_log), 0.0, None).astype(np.int64)
 
     out = pd.DataFrame({"salary_usd": test_pred})
