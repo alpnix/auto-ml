@@ -24,3 +24,6 @@ a173937	auto-ml/mar25	13249.902513	16136.378731	keep	5-seed ensemble (new best)
 3a71f21	auto-ml/mar25	13238.740874	16120.758526	discard	7 model seeds (worse than 5 -- reverted)
 3a71f21	auto-ml/mar25	13239.613149	16120.350295	discard	N_SPLITS=7 (slightly worse than 5)
 3a71f21	auto-ml/mar25	13278.349803	16185.060810	discard	max_leaf_nodes=None with max_depth=7 (overfit)
+3a71f21	auto-ml/mar25	13366.680954	16322.341593	discard	HGBR+ExtraTrees blend (ET poor fit on binary features)
+3a71f21	auto-ml/mar25	13238.272261	16119.710521	discard	mixed depth ensemble (6,7,8) -- no gain over depth=7
+3abeb09	auto-ml/mar25	13236.099323	16112.329482	keep	QuantileTransformer target -- normal dist (new best)
