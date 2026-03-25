@@ -161,7 +161,7 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
     kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
     oof = np.zeros(len(train_df), dtype=np.float64)
 
-    seeds = [42, 7, 137]
+    seeds = [42, 7, 137, 0, 314]
     for fold, (tr_idx, va_idx) in enumerate(kf.split(train_df), start=1):
         tr = train_df.iloc[tr_idx]
         va = train_df.iloc[va_idx]
@@ -208,7 +208,7 @@ def main() -> None:
     X_test = fb.transform(test_df)
     y_log_full = np.log1p(train_df["salary_usd"].to_numpy(dtype=np.float64))
 
-    seeds = [42, 7, 137]
+    seeds = [42, 7, 137, 0, 314]
     test_preds_log = []
     for seed in seeds:
         m = _make_model(fb.cat_feature_indices(), seed=seed)
