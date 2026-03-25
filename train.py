@@ -143,14 +143,14 @@ def _load_test() -> pd.DataFrame:
 
 def _make_model() -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
-        max_iter=1000,
-        learning_rate=0.03,
+        max_iter=2000,
+        learning_rate=0.02,
         max_depth=7,
         min_samples_leaf=20,
         l2_regularization=0.1,
         early_stopping=True,
         validation_fraction=0.1,
-        n_iter_no_change=40,
+        n_iter_no_change=50,
         random_state=RANDOM_STATE,
     )
 
