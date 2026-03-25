@@ -8,3 +8,4 @@ bb4197c	auto-ml/mar25	13259.011209	16146.619627	keep	exp2 features + lr=0.03 max
 ef06c80	auto-ml/mar25	49044.622253	59660.063849	crash	N_SPLITS=10 causes major regression
 5c2abb1	auto-ml/mar25	13288.242795	16193.787564	discard	max_leaf_nodes=63 no max_depth
 d37e59c	auto-ml/mar25	13259.325861	16146.509394	keep	min_samples_leaf=10 (near-best)
+f597b21	auto-ml/mar25	13259.011209	16146.619627	discard	log1p(exp) + total_skills + bayesian TE (same as best)
