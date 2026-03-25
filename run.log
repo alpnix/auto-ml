@@ -2,23 +2,18 @@ Salary regression — train.py
   train rows: 40000
   test rows:  10000
 K-fold CV (log1p target, metrics on USD scale)...
-  fold 1/10 done
-  fold 2/10 done
-  fold 3/10 done
-  fold 4/10 done
-  fold 5/10 done
-  fold 6/10 done
-  fold 7/10 done
-  fold 8/10 done
-  fold 9/10 done
-  fold 10/10 done
-  CV MAE (USD):  49,044.62
-  CV RMSE (USD): 59,660.06
+  fold 1/5 done
+  fold 2/5 done
+  fold 3/5 done
+  fold 4/5 done
+  fold 5/5 done
+  CV MAE (USD):  13,288.24
+  CV RMSE (USD): 16,193.79
 Fitting on full train, predicting test...
   wrote /Users/alp/Desktop/Practice/auto-ml/predictions.csv (10000 rows)
-  pred salary_usd min/median/max: 14,620 / 83,596 / 141,762
+  pred salary_usd min/median/max: 14,521 / 83,434 / 140,293
 ---
-cv_mae_usd:       49044.622253
-cv_rmse_usd:      59660.063849
+cv_mae_usd:       13288.242795
+cv_rmse_usd:      16193.787564
 predictions_file: predictions.csv
 test_predictions: 10000

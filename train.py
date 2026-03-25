@@ -23,7 +23,7 @@ PREDICTIONS_CSV = ROOT / "predictions.csv"
 # Cap multi-label vocabulary to keep memory reasonable for dense HGBR input
 MAX_LANGUAGE_FEATURES = 100
 MAX_FRAMEWORK_FEATURES = 100
-N_SPLITS = 10
+N_SPLITS = 5
 RANDOM_STATE = 42
 
 
@@ -145,7 +145,8 @@ def _make_model() -> HistGradientBoostingRegressor:
     return HistGradientBoostingRegressor(
         max_iter=1000,
         learning_rate=0.03,
-        max_depth=7,
+        max_depth=None,
+        max_leaf_nodes=63,
         min_samples_leaf=20,
         l2_regularization=0.1,
         early_stopping=True,
