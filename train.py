@@ -158,25 +158,32 @@ def run_cv(train_df: pd.DataFrame) -> tuple[float, float]:
     y = train_df["salary_usd"].to_numpy(dtype=np.float64)
     y_log = np.log1p(y)
 
-    kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=RANDOM_STATE)
-    oof = np.zeros(len(train_df), dtype=np.float64)
+    model_seeds = [42, 7, 137, 0, 314]
+    kf_seeds = [42, 0]  # repeated K-fold for better OOF estimates
+    oof_acc = np.zeros(len(train_df), dtype=np.float64)
+    oof_cnt = np.zeros(len(train_df), dtype=np.int32)
 
-    seeds = [42, 7, 137, 0, 314, 999, 1234, 2025, 55, 88]
-    for fold, (tr_idx, va_idx) in enumerate(kf.split(train_df), start=1):
-        tr = train_df.iloc[tr_idx]
-        va = train_df.iloc[va_idx]
-        fb = SalaryFeatureBuilder()
-        fb.fit(tr)
-        X_tr = fb.transform(tr)
-        X_va = fb.transform(va)
-        preds = []
-        for seed in seeds:
-            m = _make_model(fb.cat_feature_indices(), seed=seed)
-            m.fit(X_tr, y_log[tr_idx])
-            preds.append(m.predict(X_va))
-        oof[va_idx] = np.mean(preds, axis=0)
-        print(f"  fold {fold}/{N_SPLITS} done", file=sys.stderr)
+    total_folds = 0
+    for kf_seed in kf_seeds:
+        kf = KFold(n_splits=N_SPLITS, shuffle=True, random_state=kf_seed)
+        for fold, (tr_idx, va_idx) in enumerate(kf.split(train_df), start=1):
+            tr = train_df.iloc[tr_idx]
+            va = train_df.iloc[va_idx]
+            fb = SalaryFeatureBuilder()
+            fb.fit(tr)
+            X_tr = fb.transform(tr)
+            X_va = fb.transform(va)
+            preds = []
+            for seed in model_seeds:
+                m = _make_model(fb.cat_feature_indices(), seed=seed)
+                m.fit(X_tr, y_log[tr_idx])
+                preds.append(m.predict(X_va))
+            oof_acc[va_idx] += np.mean(preds, axis=0)
+            oof_cnt[va_idx] += 1
+            total_folds += 1
+            print(f"  kf{kf_seed} fold {fold}/{N_SPLITS} done", file=sys.stderr)
 
+    oof = oof_acc / oof_cnt
     pred_salary = np.clip(np.expm1(oof), 0.0, None)
     mae = mean_absolute_error(y, pred_salary)
     rmse = float(np.sqrt(mean_squared_error(y, pred_salary)))
